@@ -1,0 +1,71 @@
+const { Client, Message, EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const { genEmbed } = require("../../../../Global/İnit/Embed");
+const Beklet = new Set();
+
+module.exports = {
+    Isim: "kes",
+    Komut: ["bağlantı-kes", "bkes"],
+    Kullanim: "kes <@andale/ID> <Sebep>",
+    Aciklama: "Belirlenen üyeyi sesten atar.",
+    Kategori: "yetkili",
+    Extend: true,
+    
+    /**
+    * @param {Client} client 
+    */
+    onLoad: function (client) {
+
+    },
+
+    /**
+    * @param {Client} client 
+    * @param {Message} message 
+    * @param {Array<String>} args 
+    */
+
+    onRequest: async function (client, message, args) {
+
+        // V14 Yetki Kontrolü
+        const hasAdmin = message.member.permissions.has(PermissionFlagsBits.Administrator); 
+
+        if(!roller.altYönetimRolleri.some(oku => message.member.roles.cache.has(oku)) && !roller.üstYönetimRolleri.some(oku => message.member.roles.cache.has(oku)) && !roller.kurucuRolleri.some(oku => message.member.roles.cache.has(oku)) && !roller.yönetimRolleri.some(oku => message.member.roles.cache.has(oku))  && !hasAdmin) return message.reply(cevaplar.noyt).then(s => setTimeout(() => s.delete().catch(err => {}), 5000));
+        
+        if(Beklet.has(message.author.id) && !hasAdmin && !roller.kurucuRolleri.some(oku => message.member.roles.cache.has(oku)) && !ayarlar.staff.includes(message.member.id)) return message.channel.send(`${cevaplar.prefix} \`Günlük Limit Aşıldı!\` ikiden fazla bağlantı kesme işlemi uygulandığı için.`).then(x => x.delete({timeout: 7500}));
+        
+        let uye = message.mentions.members.first() || message.guild.members.cache.get(args[0]) 
+        if(!uye) return message.channel.send(cevaplar.üye).then(s => setTimeout(() => s.delete().catch(err => {}), 5000));
+        if(message.author.id === uye.id) return message.reply(cevaplar.kendi).then(s => setTimeout(() => s.delete().catch(err => {}), 5000));
+        if(uye.user.bot) return message.reply(cevaplar.bot).then(s => setTimeout(() => s.delete().catch(err => {}), 5000));
+        if(!uye.voice.channelId) return message.reply(`${uye.toString()} bir sesli kanalda bulunmuyor.`).then(s => setTimeout(() => s.delete().catch(err => {}), 5000));
+        if(message.member.roles.highest.position <= uye.roles.highest.position) return message.reply(cevaplar.yetkiust).then(s => setTimeout(() => s.delete().catch(err => {}), 5000));
+        
+        let sebep = args.splice(1).join(" ");
+        if(!sebep) return message.reply(cevaplar.sebep).then(s => setTimeout(() => s.delete().catch(err => {}), 5000));
+        
+        let findChannel = message.guild.kanalBul("bkes-log")
+        
+        if(findChannel) {
+            // V14 EmbedBuilder Kullanımı
+            findChannel.send({embeds: [new genEmbed().setDescription(`${uye} üyesi ${message.author} tarafından ${tarihsel(Date.now())} tarihinde ${uye.voice.channel ? uye.voice.channel : "#Kanal Bulunamadı"} belirtilen sesli kanalından atıldı.`)]})
+        }
+
+        // V14'te disconnect metoduna sebep (reason) eklenebilir.
+        await uye.voice.disconnect(sebep).catch(err => {});
+        
+        // Emoji reaksiyonu (V14'te aynı kalır)
+        message.react(message.guild.emojiGöster(emojiler.Onay) ? message.guild.emojiGöster(emojiler.Onay).id : '✅').catch(err => {});
+
+        // Limit Ekleme
+        if(!roller.kurucuRolleri.some(oku => message.member.roles.cache.has(oku)) && !hasAdmin && !ayarlar.staff.includes(message.member.id)) {
+            Beklet.add(message.author.id);
+            setTimeout(() => {
+                Beklet.delete(message.author.id);
+            }, 86400000); // 24 Saat
+        }
+
+        // V14 EmbedBuilder Kullanımı
+        uye.send({embeds: [new genEmbed().setDescription(`${message.author} tarafından \`${sebep}\` sebebi ile <t:${String(Date.now()).slice(0, 10)}:R> bulunduğun sesten atıldın.`)]}).catch(x => {
+            
+        })
+    }
+};
